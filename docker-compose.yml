@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - OKTA_DOMAIN=${OKTA_DOMAIN}
+      - OKTA_CLIENT_ID=${OKTA_CLIENT_ID}
+      - OKTA_CLIENT_SECRET=${OKTA_CLIENT_SECRET}
+      - OKTA_AUDIENCE=${OKTA_AUDIENCE}
+      - OKTA_ISSUER=${OKTA_ISSUER}
+      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_PATH=/app/database/ndb_capacity_planner.db
+      - FRONTEND_URL=${FRONTEND_URL}
+      - CORS_ORIGIN=${FRONTEND_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./data/database:/app/database
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - OKTA_DOMAIN=${OKTA_DOMAIN}
+      - OKTA_CLIENT_ID=${OKTA_CLIENT_ID}
+      - OKTA_ISSUER=${OKTA_ISSUER}
+      - BACKEND_URL=http://backend:3001
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  database_data:
+

@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+  
+  body {
+    @apply bg-white text-black font-sans;
+  }
+}
+
+@layer components {
+  /* Minimal Black & White Design */
+  .btn-primary {
+    @apply bg-black hover:bg-gray-800 text-white px-6 py-2 rounded border-2 border-black font-medium transition-all duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-50 text-black px-6 py-2 rounded border-2 border-black font-medium transition-all duration-200;
+  }
+  
+  .btn-danger {
+    @apply bg-white hover:bg-red-50 text-red-600 px-6 py-2 rounded border-2 border-red-600 font-medium transition-all duration-200;
+  }
+  
+  .input {
+    @apply border-2 border-gray-300 hover:border-black focus:border-black rounded px-3 py-2 focus:outline-none transition-all duration-200;
+  }
+  
+  .card {
+    @apply bg-white rounded border-2 border-gray-200 hover:border-gray-400 p-6 transition-all duration-200;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded border text-xs font-bold uppercase tracking-wide;
+  }
+  
+  .badge-superadmin {
+    @apply bg-black text-white border-black;
+  }
+  
+  .badge-admin {
+    @apply bg-white text-black border-black;
+  }
+  
+  .badge-user {
+    @apply bg-gray-100 text-gray-800 border-gray-400;
+  }
+}
+

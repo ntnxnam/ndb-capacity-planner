@@ -1,0 +1,30 @@
+{
+  "name": "ndb-capacity-planner",
+  "version": "1.0.0",
+  "description": "NDB Capacity Planner with OKTA SSO and RBAC",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "npm run start:backend",
+    "start:backend": "cd backend && npm start",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "rbac:status": "./toggle-rbac.sh status",
+    "rbac:enable": "./toggle-rbac.sh enable",
+    "rbac:disable": "./toggle-rbac.sh disable"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.12.2",
+    "dotenv": "^17.2.3"
+  }
+}

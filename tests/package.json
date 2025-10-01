@@ -1,0 +1,32 @@
+{
+  "name": "ndb-capacity-planner-tests",
+  "version": "1.0.0",
+  "description": "Test framework for NDB Capacity Planner",
+  "main": "intelligent-test-runner.js",
+  "scripts": {
+    "test": "node intelligent-test-runner.js",
+    "test:all": "node intelligent-test-runner.js \"run all tests\"",
+    "test:auth": "node intelligent-test-runner.js \"authentication issues\"",
+    "test:ui": "node intelligent-test-runner.js \"navigation sidebar breadcrumb\"",
+    "test:data": "node intelligent-test-runner.js \"data validation save create\"",
+    "test:performance": "node intelligent-test-runner.js \"slow performance timeout\"",
+    "test:security": "node intelligent-test-runner.js \"security vulnerability sql injection\"",
+    "test:jira": "node intelligent-test-runner.js \"jira integration external api\"",
+    "test:dates": "node intelligent-test-runner.js \"date suggestions calculation\""
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "colors": "^1.4.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "testing",
+    "api",
+    "integration",
+    "security",
+    "performance"
+  ],
+  "author": "NDB Capacity Planner Team",
+  "license": "MIT"
+}
+
