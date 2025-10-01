@@ -49,14 +49,28 @@ router.get('/jira-status', authenticateToken, checkPermission('view_data'), asyn
 router.get('/jira-releases', authenticateToken, checkPermission('view_data'), async (req: AuthRequest, res) => {
   try {
     const db = DatabaseManager.getInstance();
-    const releases = await db.all(`
+    
+    // Get all JIRA releases that are not archived
+    const allReleases = await db.all(`
       SELECT id, name, description, project_id, released, archived, start_date, release_date
       FROM jira_releases 
       WHERE archived = 0
       ORDER BY release_date ASC, name ASC
     `);
     
-    res.json(releases);
+    // Get JIRA release IDs that are already used in release plans
+    const usedJiraIds = await db.all(`
+      SELECT DISTINCT jira_release_id 
+      FROM release_plans 
+      WHERE jira_release_id IS NOT NULL
+    `);
+    
+    const usedIds = new Set(usedJiraIds.map(row => String(row.jira_release_id)));
+    
+    // Filter out releases that are already used
+    const availableReleases = allReleases.filter(release => !usedIds.has(String(release.id)));
+    
+    res.json(availableReleases);
   } catch (error) {
     console.error('Error fetching JIRA releases for release plans:', error);
     res.status(500).json({ error: 'Failed to fetch JIRA releases' });
@@ -224,6 +238,34 @@ router.post('/',
         release_dris_json = JSON.stringify(release_dris);
       }
 
+      // Check for duplicate release plans
+      const existingPlanByName = await db.get(
+        'SELECT id FROM release_plans WHERE name = ?',
+        [name]
+      );
+      
+      if (existingPlanByName) {
+        return res.status(400).json({ 
+          error: 'A release plan with this name already exists',
+          code: 'DUPLICATE_PLAN_NAME'
+        });
+      }
+
+      // Check for duplicate JIRA release ID if provided
+      if (jira_release_id) {
+        const existingPlanByJiraId = await db.get(
+          'SELECT id, name FROM release_plans WHERE jira_release_id = ?',
+          [jira_release_id]
+        );
+        
+        if (existingPlanByJiraId) {
+          return res.status(400).json({ 
+            error: `A release plan already exists for JIRA release "${existingPlanByJiraId.name}"`,
+            code: 'DUPLICATE_JIRA_RELEASE'
+          });
+        }
+      }
+
       const planId = uuidv4();
       await db.run(
         `INSERT INTO release_plans (
@@ -381,6 +423,36 @@ router.put('/:id',
           error: 'Release plan not found',
           code: 'RELEASE_PLAN_NOT_FOUND'
         });
+      }
+
+      // Check for duplicate release plan names (excluding current plan)
+      const existingPlanByName = await db.get(
+        'SELECT id FROM release_plans WHERE name = ? AND id != ?',
+        [name, id]
+      );
+      
+      if (existingPlanByName) {
+        return res.status(400).json({ 
+          success: false,
+          error: 'A release plan with this name already exists',
+          code: 'DUPLICATE_PLAN_NAME'
+        });
+      }
+
+      // Check for duplicate JIRA release ID if provided (excluding current plan)
+      if (jira_release_id) {
+        const existingPlanByJiraId = await db.get(
+          'SELECT id, name FROM release_plans WHERE jira_release_id = ? AND id != ?',
+          [jira_release_id, id]
+        );
+        
+        if (existingPlanByJiraId) {
+          return res.status(400).json({ 
+            success: false,
+            error: `A release plan already exists for JIRA release "${existingPlanByJiraId.name}"`,
+            code: 'DUPLICATE_JIRA_RELEASE'
+          });
+        }
       }
 
       // Calculate Feature QA Need By Date (defaults to Soft Code Complete Date)
@@ -571,15 +643,40 @@ router.post('/date-suggestions',
         });
       }
 
-      // Calculate suggested dates working backwards from GA date
+      // Get configured date gaps (default to hardcoded values if not configured)
+      let dateGaps = {
+        gaToPromotionGate: 4,
+        promotionGateToCommitGate: 4,
+        commitGateToSoftCodeComplete: 4,
+        softCodeCompleteToExecuteCommit: 4,
+        executeCommitToConceptCommit: 4,
+        conceptCommitToPreCC: 4
+      };
+
+      try {
+        // Try to get configured date gaps from the database
+        const db = DatabaseManager.getInstance();
+        const configResult = await db.get('SELECT * FROM date_gaps_config ORDER BY created_at DESC LIMIT 1');
+        if (configResult) {
+          dateGaps = JSON.parse(configResult.config_data);
+        }
+      } catch (error) {
+        console.log('Using default date gaps configuration');
+      }
+
+      // Calculate suggested dates using configured gaps
+      const totalWeeks = dateGaps.gaToPromotionGate + dateGaps.promotionGateToCommitGate + 
+                        dateGaps.commitGateToSoftCodeComplete + dateGaps.softCodeCompleteToExecuteCommit + 
+                        dateGaps.executeCommitToConceptCommit + dateGaps.conceptCommitToPreCC;
+
       const suggestions = {
-        pre_cc_complete_date: new Date(gaDate.getTime() - (24 * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // 24 weeks before
-        concept_commit_date: new Date(gaDate.getTime() - (20 * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // 20 weeks before
-        execute_commit_date: new Date(gaDate.getTime() - (16 * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // 16 weeks before
-        soft_code_complete_date: new Date(gaDate.getTime() - (12 * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // 12 weeks before
-        commit_gate_met_date: new Date(gaDate.getTime() - (8 * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // 8 weeks before
-        promotion_gate_met_date: new Date(gaDate.getTime() - (4 * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0], // 4 weeks before
-        feature_qa_need_by_date: new Date(gaDate.getTime() - (12 * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0] // Same as soft code complete
+        pre_cc_complete_date: new Date(gaDate.getTime() - (totalWeeks * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+        concept_commit_date: new Date(gaDate.getTime() - ((totalWeeks - dateGaps.conceptCommitToPreCC) * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+        execute_commit_date: new Date(gaDate.getTime() - ((totalWeeks - dateGaps.conceptCommitToPreCC - dateGaps.executeCommitToConceptCommit) * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+        soft_code_complete_date: new Date(gaDate.getTime() - ((totalWeeks - dateGaps.conceptCommitToPreCC - dateGaps.executeCommitToConceptCommit - dateGaps.softCodeCompleteToExecuteCommit) * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+        commit_gate_met_date: new Date(gaDate.getTime() - ((totalWeeks - dateGaps.conceptCommitToPreCC - dateGaps.executeCommitToConceptCommit - dateGaps.softCodeCompleteToExecuteCommit - dateGaps.commitGateToSoftCodeComplete) * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+        promotion_gate_met_date: new Date(gaDate.getTime() - (dateGaps.gaToPromotionGate * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+        feature_qa_need_by_date: new Date(gaDate.getTime() - ((totalWeeks - dateGaps.conceptCommitToPreCC - dateGaps.executeCommitToConceptCommit - dateGaps.softCodeCompleteToExecuteCommit) * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0] // Same as soft code complete
       };
 
       logger.audit('DATE_SUGGESTIONS_GENERATED', 'Date suggestions generated', {

@@ -1,0 +1,31 @@
+{
+  "name": "ndb-capacity-planner-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server for NDB Capacity Planner AI Availability Agent",
+  "main": "dist/mcp/server.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/mcp/server.js",
+    "dev": "tsx src/mcp/server.ts",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "availability",
+    "capacity-planning",
+    "ndb"
+  ],
+  "author": "NDB Capacity Planner Team",
+  "license": "MIT"
+}

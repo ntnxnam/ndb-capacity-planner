@@ -178,6 +178,117 @@ export class JiraService {
       throw error;
     }
   }
+
+  /**
+   * Get all components from the ERA project and store them in database
+   */
+  async getProjectComponents(): Promise<any[]> {
+    try {
+      console.log(`🔍 Fetching components for project: ${this.projectKey}`);
+      
+      // Try to get project details first to see what's available
+      const projectResponse = await this.client.get(`/rest/api/2/project/${this.projectKey}`);
+      const project = projectResponse.data;
+      
+      console.log(`✅ Project data structure:`, {
+        projectKey: project.key,
+        projectName: project.name,
+        availableFields: Object.keys(project),
+        hasComponents: !!project.components
+      });
+      
+      // Return components if they exist in the project data
+      if (project.components && Array.isArray(project.components)) {
+        console.log(`✅ Found ${project.components.length} components in project data`);
+        
+        // Store components in database
+        await this.storeComponentsInDatabase(project.components);
+        
+        return project.components;
+      }
+      
+      // If no components in project data, return empty array for now
+      console.log(`⚠️ No components found in project data, returning empty array`);
+      return [];
+      
+    } catch (error: any) {
+      console.error('❌ Error fetching project components:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      
+      // Return empty array instead of throwing error for now
+      console.log(`⚠️ Returning empty array due to error`);
+      return [];
+    }
+  }
+
+  /**
+   * Store components in database
+   */
+  private async storeComponentsInDatabase(components: any[]): Promise<void> {
+    try {
+      const { DatabaseManager } = await import('../database/DatabaseManager');
+      const db = DatabaseManager.getInstance();
+      
+      // Clear existing components for this project
+      await db.run('DELETE FROM jira_components WHERE project_id = ?', [this.projectKey]);
+      
+      // Insert new components
+      for (const component of components) {
+        await db.run(`
+          INSERT INTO jira_components (
+            id, name, description, project_id, assignee_type, 
+            lead_key, lead_name, lead_display_name, is_assignee_type_valid,
+            last_synced_at, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `, [
+          component.id,
+          component.name,
+          component.description || null,
+          this.projectKey,
+          component.assigneeType || null,
+          component.lead?.key || null,
+          component.lead?.name || null,
+          component.lead?.displayName || null,
+          component.isAssigneeTypeValid ? 1 : 0
+        ]);
+      }
+      
+      console.log(`✅ Stored ${components.length} components in database`);
+    } catch (error) {
+      console.error('❌ Error storing components in database:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all users who can be assigned to issues in the ERA project
+   */
+  async getProjectAssignableUsers(): Promise<any[]> {
+    try {
+      console.log(`🔍 Fetching assignable users for project: ${this.projectKey}`);
+      
+      // For now, return empty array since user endpoints might not be available
+      // This will be implemented once we confirm the correct JIRA API structure
+      console.log(`⚠️ User fetching not implemented yet, returning empty array`);
+      return [];
+      
+    } catch (error: any) {
+      console.error('❌ Error fetching assignable users:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      
+      // Return empty array instead of throwing error for now
+      console.log(`⚠️ Returning empty array due to error`);
+      return [];
+    }
+  }
 }
 
 // Singleton instance

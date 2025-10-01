@@ -68,6 +68,7 @@ export const checkPermission = (operation: string) => {
       
       case 'edit_data':
       case 'create_data':
+      case 'manage_data':
         hasPermission = [UserRole.ADMIN, UserRole.SUPERADMIN].includes(role);
         break;
       

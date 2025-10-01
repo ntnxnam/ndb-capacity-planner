@@ -24,9 +24,14 @@ import { usePathname } from 'next/navigation';
 interface LayoutProps {
   children: React.ReactNode;
   user?: User;
+  pageHeader?: {
+    title: string;
+    description?: string;
+    icon?: React.ComponentType<{ className?: string }>;
+  };
 }
 
-export function Layout({ children, user }: LayoutProps) {
+export function Layout({ children, user, pageHeader }: LayoutProps) {
   const { oktaAuth } = useOktaAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -43,12 +48,12 @@ export function Layout({ children, user }: LayoutProps) {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Database, roles: ['user', 'admin', 'superadmin'] },
-    { name: 'Data Entries', href: '/data', icon: FileText, roles: ['user', 'admin', 'superadmin'] },
-    { name: 'Calculations', href: '/calculations', icon: Calculator, roles: ['user', 'admin', 'superadmin'] },
-    { name: 'Release Plans', href: '/release-plans', icon: Calendar, roles: ['user', 'admin', 'superadmin'] },
-    { name: 'JIRA Releases', href: '/jira-releases', icon: GitBranch, roles: ['admin', 'superadmin'] },
-    { name: 'Audit Logs', href: '/audit-logs', icon: Activity, roles: ['admin', 'superadmin'] },
+    { name: 'Input Entries', href: '/data', icon: FileText, roles: ['user', 'admin', 'superadmin'] },
     { name: 'Configuration', href: '/config', icon: Settings, roles: ['superadmin'] },
+    { name: 'JIRA Releases', href: '/jira-releases', icon: GitBranch, roles: ['admin', 'superadmin'] },
+    { name: 'Release Plans', href: '/release-plans', icon: Calendar, roles: ['user', 'admin', 'superadmin'] },
+    { name: 'Calculations', href: '/calculations', icon: Calculator, roles: ['user', 'admin', 'superadmin'] },
+    { name: 'Audit Logs', href: '/audit-logs', icon: Activity, roles: ['admin', 'superadmin'] },
     { name: 'User Management', href: '/users', icon: Users, roles: ['admin', 'superadmin'] },
   ];
 
@@ -148,19 +153,30 @@ export function Layout({ children, user }: LayoutProps) {
           </button>
           
           <div className="flex items-center space-x-4">
-            {user && (
-              <div className="flex items-center space-x-3">
-                <div className="text-sm">
-                  <p className="font-medium text-black">{user.name}</p>
-                  <p className="text-gray-600">{user.email}</p>
-                </div>
-                <span className={getRoleBadgeClass(user.role)}>
-                  {user.role}
-                </span>
-              </div>
-            )}
+            {/* Clean top bar - user info is in sidebar */}
           </div>
         </div>
+
+        {/* Page Header */}
+        {pageHeader && (
+          <div className="px-4 py-6 bg-white border-b border-gray-200 lg:px-6">
+            <div className="flex items-center gap-3">
+              {pageHeader.icon && (
+                <pageHeader.icon className="h-8 w-8 text-gray-600" />
+              )}
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {pageHeader.title}
+                </h1>
+                {pageHeader.description && (
+                  <p className="text-gray-600 mt-1">
+                    {pageHeader.description}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Breadcrumbs */}
         <Breadcrumbs 

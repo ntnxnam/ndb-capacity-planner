@@ -14,6 +14,7 @@ import { releasePlanRoutes } from './routes/releasePlans';
 import { auditLogRoutes } from './routes/auditLogs';
 import jiraReleaseRoutes from './routes/jiraReleases';
 import dateFieldRoutes from './routes/dateFields';
+import mcpRoutes from './routes/mcp';
 import { errorHandler } from './middleware/errorHandler';
 import { localDevAuth } from './middleware/localAuth';
 import { logger, LogCategory } from './utils/logger';
@@ -98,6 +99,7 @@ app.use('/api/release-plans', releasePlanRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/jira-releases', jiraReleaseRoutes);
 app.use('/api/date-fields', dateFieldRoutes);
+app.use('/api/mcp', mcpRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

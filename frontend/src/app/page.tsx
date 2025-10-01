@@ -62,8 +62,7 @@ export default function HomePage() {
       }
 
       // Get release plans for stats
-      const plansResponse = await api.get('/release-plans');
-      const plans = plansResponse.data || [];
+      const plans = await api.getReleasePlans();
       
       const now = new Date();
       const activePlans = plans.filter((plan: any) => {

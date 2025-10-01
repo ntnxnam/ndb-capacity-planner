@@ -162,6 +162,37 @@ export class DatabaseManager {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`,
 
+      // JIRA components table for storing project components
+      `CREATE TABLE IF NOT EXISTS jira_components (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        project_id TEXT NOT NULL,
+        assignee_type TEXT,
+        lead_key TEXT,
+        lead_name TEXT,
+        lead_display_name TEXT,
+        is_assignee_type_valid BOOLEAN NOT NULL DEFAULT 0,
+        last_synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // JIRA assignees table for storing assignable users
+      `CREATE TABLE IF NOT EXISTS jira_assignees (
+        account_id TEXT PRIMARY KEY,
+        display_name TEXT NOT NULL,
+        email_address TEXT,
+        avatar_url_16x16 TEXT,
+        avatar_url_24x24 TEXT,
+        avatar_url_32x32 TEXT,
+        avatar_url_48x48 TEXT,
+        active BOOLEAN NOT NULL DEFAULT 1,
+        last_synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
       // Date fields table for dynamic date field management
       `CREATE TABLE IF NOT EXISTS date_fields (
         id TEXT PRIMARY KEY,
@@ -172,6 +203,27 @@ export class DatabaseManager {
         field_order INTEGER NOT NULL DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // Date gaps configuration table
+      `CREATE TABLE IF NOT EXISTS date_gaps_config (
+        id TEXT PRIMARY KEY,
+        config_data TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+      
+      // Hackathon days table - stores hackathon days for each year
+      `CREATE TABLE IF NOT EXISTS hackathon_days (
+        id TEXT PRIMARY KEY,
+        year INTEGER NOT NULL,
+        tuesday_date DATE NOT NULL,
+        wednesday_date DATE NOT NULL,
+        thursday_date DATE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(year)
       )`,
 
       // Indexes for better performance
@@ -192,7 +244,11 @@ export class DatabaseManager {
       `CREATE INDEX IF NOT EXISTS idx_jira_releases_project_id ON jira_releases (project_id)`,
       `CREATE INDEX IF NOT EXISTS idx_jira_releases_released ON jira_releases (released)`,
       `CREATE INDEX IF NOT EXISTS idx_jira_releases_release_date ON jira_releases (release_date)`,
-      `CREATE INDEX IF NOT EXISTS idx_jira_releases_last_synced ON jira_releases (last_synced_at)`
+      `CREATE INDEX IF NOT EXISTS idx_jira_releases_last_synced ON jira_releases (last_synced_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_jira_components_project_id ON jira_components (project_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_jira_components_last_synced ON jira_components (last_synced_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_jira_assignees_active ON jira_assignees (active)`,
+      `CREATE INDEX IF NOT EXISTS idx_jira_assignees_last_synced ON jira_assignees (last_synced_at)`
     ];
 
     for (const query of queries) {
@@ -309,5 +365,29 @@ export class DatabaseManager {
         resolve();
       }
     });
+  }
+
+  // Hackathon days methods
+  public async getHackathonDays(year: number): Promise<{ tuesday_date: string; wednesday_date: string; thursday_date: string } | null> {
+    const result = await this.get(
+      'SELECT tuesday_date, wednesday_date, thursday_date FROM hackathon_days WHERE year = ?',
+      [year]
+    );
+    return result || null;
+  }
+
+  public async setHackathonDays(year: number, tuesdayDate: string, wednesdayDate: string, thursdayDate: string): Promise<void> {
+    const id = `hackathon-${year}`;
+    await this.run(
+      `INSERT OR REPLACE INTO hackathon_days (id, year, tuesday_date, wednesday_date, thursday_date, updated_at) 
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [id, year, tuesdayDate, wednesdayDate, thursdayDate]
+    );
+  }
+
+  public async getAllHackathonDays(): Promise<Array<{ year: number; tuesday_date: string; wednesday_date: string; thursday_date: string }>> {
+    return await this.all(
+      'SELECT year, tuesday_date, wednesday_date, thursday_date FROM hackathon_days ORDER BY year'
+    );
   }
 }

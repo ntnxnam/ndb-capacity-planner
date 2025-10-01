@@ -210,6 +210,95 @@ router.get('/active', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/jira-releases/components
+ * Get all components from the ERA project (from database)
+ */
+router.get('/components', async (req: Request, res: Response) => {
+  try {
+    console.log('🔍 API: Fetching JIRA components from database...');
+    
+    const db = DatabaseManager.getInstance();
+    const components = await db.all(`
+      SELECT 
+        id, name, description, project_id, assignee_type,
+        lead_key, lead_name, lead_display_name, is_assignee_type_valid,
+        last_synced_at, created_at, updated_at
+      FROM jira_components 
+      ORDER BY name ASC
+    `);
+
+    // Transform to match frontend expectations
+    const transformedComponents = components.map(comp => ({
+      id: comp.id,
+      name: comp.name,
+      description: comp.description,
+      assigneeType: comp.assignee_type,
+      lead: comp.lead_key ? {
+        key: comp.lead_key,
+        name: comp.lead_name,
+        displayName: comp.lead_display_name
+      } : undefined,
+      isAssigneeTypeValid: comp.is_assignee_type_valid === 1
+    }));
+
+    console.log(`✅ API: Successfully fetched ${transformedComponents.length} components from database`);
+
+    res.json({
+      success: true,
+      data: transformedComponents,
+      count: transformedComponents.length
+    });
+  } catch (error: any) {
+    console.error('❌ API: Error fetching JIRA components from database:', {
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      error: `Failed to fetch JIRA components: ${error.message}`
+    });
+  }
+});
+
+/**
+ * GET /api/jira-releases/assignees
+ * Get all assignable users from the ERA project
+ */
+router.get('/assignees', async (req: Request, res: Response) => {
+  try {
+    console.log('🔍 API: Fetching JIRA assignees...');
+    
+    if (!isJiraConfigured()) {
+      console.log('❌ JIRA not configured');
+      return res.status(400).json({
+        success: false,
+        error: 'JIRA is not configured. Please set JIRA_USERNAME and JIRA_API_TOKEN environment variables.'
+      });
+    }
+
+    const jiraService = getJiraService();
+    const assignees = await jiraService.getProjectAssignableUsers();
+
+    console.log(`✅ API: Successfully fetched ${assignees.length} assignees`);
+
+    res.json({
+      success: true,
+      data: assignees,
+      count: assignees.length
+    });
+  } catch (error: any) {
+    console.error('❌ API: Error fetching JIRA assignees:', {
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      error: `Failed to fetch JIRA assignees: ${error.message}`
+    });
+  }
+});
+
+/**
  * GET /api/jira-releases/:id
  * Get a specific JIRA release by ID
  */

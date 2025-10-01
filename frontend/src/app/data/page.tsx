@@ -91,7 +91,7 @@ export default function DataPage() {
               Data Entries
             </h1>
             <p className="text-gray-600 mt-2">
-              Manage capacity planning data entries
+              Manage capacity planning data entries. Store and organize data for NDB capacity planning calculations and analysis.
             </p>
           </div>
           {(user?.role === 'admin' || user?.role === 'superadmin') && (

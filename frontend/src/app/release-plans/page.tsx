@@ -164,7 +164,7 @@ export default function ReleasePlansPage() {
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Release Plans</h1>
             <p className="text-slate-600 mt-2">
-              Manage your release timeline and milestone dates
+              Manage your release timeline and milestone dates. Create and manage release plans with dates that align with NDB's release cycle (May & November, second Tuesday).
             </p>
           </div>
           

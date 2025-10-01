@@ -176,7 +176,7 @@ export default function AuditLogsPage() {
       <div className="space-y-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-black mb-2">Audit Logs</h1>
-          <p className="text-gray-600">Monitor system activity and user actions</p>
+          <p className="text-gray-600">Monitor system activity and user actions. Track all changes, API calls, and security events for compliance and debugging purposes.</p>
         </div>
 
         {/* Stats Cards */}

@@ -372,17 +372,98 @@ class ApiClient {
     return response.data;
   }
 
-  async getJiraStatus(): Promise<{ 
-    success: boolean; 
-    data: { 
-      configured: boolean; 
-      connection_status: string; 
+  async getJiraStatus(): Promise<{
+    success: boolean;
+    data: {
+      configured: boolean;
+      connection_status: string;
       last_synced_at?: string; 
       total_releases: number 
     } 
   }> {
     const response = await this.client.get('/jira-releases/status');
     return response.data;
+  }
+
+  // Configuration endpoints
+  async getDateGapsConfig(): Promise<{
+    gaToPromotionGate: number;
+    promotionGateToCommitGate: number;
+    commitGateToSoftCodeComplete: number;
+    softCodeCompleteToExecuteCommit: number;
+    executeCommitToConceptCommit: number;
+    conceptCommitToPreCC: number;
+  }> {
+    const response = await this.client.get('/config/date-gaps');
+    return response.data;
+  }
+
+  async saveDateGapsConfig(dateGaps: {
+    gaToPromotionGate: number;
+    promotionGateToCommitGate: number;
+    commitGateToSoftCodeComplete: number;
+    softCodeCompleteToExecuteCommit: number;
+    executeCommitToConceptCommit: number;
+    conceptCommitToPreCC: number;
+  }): Promise<{ message: string; config: any }> {
+    const response = await this.client.post('/config/date-gaps', dateGaps);
+    return response.data;
+  }
+
+  async getDateFieldsConfig(): Promise<Array<{
+    key: string;
+    label: string;
+    description: string;
+    priority: number;
+    isRequired: boolean;
+    isEnabled: boolean;
+  }>> {
+    const response = await this.client.get('/config/date-fields');
+    return response.data;
+  }
+
+  async saveDateFieldsConfig(fields: Array<{
+    key: string;
+    label: string;
+    description: string;
+    priority: number;
+    isRequired: boolean;
+    isEnabled: boolean;
+  }>): Promise<{ message: string; fields: any }> {
+    const response = await this.client.post('/config/date-fields', { fields });
+    return response.data;
+  }
+
+  // JIRA Components and Assignees
+  async getJiraComponents(): Promise<Array<{
+    id: string;
+    name: string;
+    description?: string;
+    assigneeType?: string;
+    lead?: {
+      key: string;
+      name: string;
+      displayName: string;
+    };
+  }>> {
+    const response = await this.client.get('/jira-releases/components');
+    return response.data.data;
+  }
+
+  async getJiraAssignees(): Promise<Array<{
+    accountId: string;
+    displayName: string;
+    emailAddress?: string;
+    avatarUrls?: {
+      '16x16': string;
+      '24x24': string;
+      '32x32': string;
+      '48x48': string;
+    };
+    active: boolean;
+  }>> {
+    const response = await this.client.get('/jira-releases/assignees');
+    return response.data.data;
   }
 }
 

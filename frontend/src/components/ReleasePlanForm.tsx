@@ -332,15 +332,40 @@ export function ReleasePlanForm({ plan, onSuccess, onCancel }: ReleasePlanFormPr
     }
   };
 
-  const dateFields = [
-    { key: 'ga_date', label: 'GA Date', description: 'General availability release date', priority: 1 },
-    { key: 'promotion_gate_met_date', label: 'Promotion Gate Met Date', description: 'Promotion gate milestone date', priority: 2 },
-    { key: 'commit_gate_met_date', label: 'Commit Gate Met Date', description: 'Commit gate milestone date', priority: 3 },
-    { key: 'soft_code_complete_date', label: 'Soft Code Complete Date', description: 'Soft code completion date', priority: 4 },
-    { key: 'execute_commit_date', label: 'Execute Commit Date', description: 'Execution commitment date', priority: 5 },
-    { key: 'concept_commit_date', label: 'Concept Commit Date', description: 'Concept commitment date', priority: 6 },
-    { key: 'pre_cc_complete_date', label: 'Pre-CC Complete Date', description: 'Pre-concept commit completion date', priority: 7 }
+  // Default date fields - will be overridden by configuration
+  const defaultDateFields = [
+    { key: 'ga_date', label: 'GA Date', description: 'General availability release date', priority: 1, isRequired: true, isEnabled: true },
+    { key: 'promotion_gate_met_date', label: 'Promotion Gate Met Date', description: 'Promotion gate milestone date', priority: 2, isRequired: true, isEnabled: true },
+    { key: 'commit_gate_met_date', label: 'Commit Gate Met Date', description: 'Commit gate milestone date', priority: 3, isRequired: true, isEnabled: true },
+    { key: 'soft_code_complete_date', label: 'Soft Code Complete Date', description: 'Soft code completion date', priority: 4, isRequired: true, isEnabled: true },
+    { key: 'execute_commit_date', label: 'Execute Commit Date', description: 'Execution commitment date', priority: 5, isRequired: true, isEnabled: true },
+    { key: 'concept_commit_date', label: 'Concept Commit Date', description: 'Concept commitment date', priority: 6, isRequired: true, isEnabled: true },
+    { key: 'pre_cc_complete_date', label: 'Pre-CC Complete Date', description: 'Pre-concept commit completion date', priority: 7, isRequired: true, isEnabled: true }
   ];
+
+  const [dateFields, setDateFields] = useState(defaultDateFields);
+
+  // Load date fields configuration
+  useEffect(() => {
+    const loadDateFieldsConfig = async () => {
+      try {
+        // TODO: Replace with actual API call when backend is ready
+        // const config = await api.getDateFieldsConfig();
+        // setDateFields(config);
+        
+        // For now, use default fields
+        setDateFields(defaultDateFields);
+      } catch (error) {
+        console.error('Error loading date fields configuration:', error);
+        setDateFields(defaultDateFields);
+      }
+    };
+
+    loadDateFieldsConfig();
+  }, []);
+
+  // Filter to only show enabled fields
+  const enabledDateFields = dateFields.filter(field => field.isEnabled);
 
   return (
     <div className="card max-w-4xl mx-auto">
@@ -570,10 +595,11 @@ export function ReleasePlanForm({ plan, onSuccess, onCancel }: ReleasePlanFormPr
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {dateFields.map((field, index) => (
+            {enabledDateFields.map((field, index) => (
               <div key={field.key} className="space-y-2">
                 <label className="block text-sm font-medium text-slate-700">
                   {field.label}
+                  {field.isRequired && <span className="text-red-500 ml-1">*</span>}
                   {suggestions && (
                     <button
                       type="button"
@@ -590,6 +616,7 @@ export function ReleasePlanForm({ plan, onSuccess, onCancel }: ReleasePlanFormPr
                   name={field.key}
                   value={(formData as any)[field.key] || ''}
                   onChange={handleInputChange}
+                  required={field.isRequired}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
                 {(formData as any)[field.key] && (

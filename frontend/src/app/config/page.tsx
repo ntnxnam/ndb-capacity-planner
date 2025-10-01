@@ -5,6 +5,7 @@ import { useOktaAuth } from '@/lib/localAuthHook';
 import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/Layout';
 import { api, User, DataField } from '@/lib/api';
+import { DEFAULTS } from '@/lib/defaults';
 import { 
   Settings, 
   Plus, 
@@ -16,7 +17,9 @@ import {
   Hash,
   Calendar,
   ToggleLeft,
-  CheckCircle
+  CheckCircle,
+  Users,
+  RefreshCw
 } from 'lucide-react';
 
 export default function ConfigPage() {
@@ -25,17 +28,22 @@ export default function ConfigPage() {
   const [user, setUser] = useState<User | null>(null);
   const [fields, setFields] = useState<DataField[]>([]);
   const [loading, setLoading] = useState(true);
-  const defaultDateGaps = {
-    gaToPromotionGate: 4,
-    promotionGateToCommitGate: 4,
-    commitGateToSoftCodeComplete: 4,
-    softCodeCompleteToExecuteCommit: 4,
-    executeCommitToConceptCommit: 4,
-    conceptCommitToPreCcComplete: 4
-  };
+  const defaultDateGaps = DEFAULTS.DATE_GAPS;
 
   const [dateGaps, setDateGaps] = useState(defaultDateGaps);
   const [savingGaps, setSavingGaps] = useState(false);
+  
+  // Date fields configuration state
+  const [dateFields, setDateFields] = useState([
+    { key: 'ga_date', label: 'GA Date', description: 'General availability release date', isRequired: true, isEnabled: true, priority: 1 },
+    { key: 'promotion_gate_met_date', label: 'Promotion Gate Met Date', description: 'Promotion gate milestone date', isRequired: true, isEnabled: true, priority: 2 },
+    { key: 'commit_gate_met_date', label: 'Commit Gate Met Date', description: 'Commit gate milestone date', isRequired: true, isEnabled: true, priority: 3 },
+    { key: 'soft_code_complete_date', label: 'Soft Code Complete Date', description: 'Soft code completion date', isRequired: true, isEnabled: true, priority: 4 },
+    { key: 'execute_commit_date', label: 'Execute Commit Date', description: 'Execution commitment date', isRequired: true, isEnabled: true, priority: 5 },
+    { key: 'concept_commit_date', label: 'Concept Commit Date', description: 'Concept commitment date', isRequired: true, isEnabled: true, priority: 6 },
+    { key: 'pre_cc_complete_date', label: 'Pre-CC Complete Date', description: 'Pre-concept commit completion date', isRequired: true, isEnabled: true, priority: 7 }
+  ]);
+  const [savingFields, setSavingFields] = useState(false);
 
   useEffect(() => {
     if (authState.isAuthenticated) {
@@ -96,8 +104,30 @@ export default function ConfigPage() {
   const handleSaveGaps = async () => {
     try {
       setSavingGaps(true);
+      
+      // Log configuration change
+      console.log('🔧 Date gaps configuration changed:', {
+        previous: defaultDateGaps,
+        current: dateGaps,
+        changes: Object.keys(dateGaps).filter(key => 
+          dateGaps[key as keyof typeof dateGaps] !== defaultDateGaps[key as keyof typeof defaultDateGaps]
+        ).map(key => ({
+          field: key,
+          from: defaultDateGaps[key as keyof typeof defaultDateGaps],
+          to: dateGaps[key as keyof typeof dateGaps]
+        }))
+      });
+
       // TODO: Implement API call to save date gaps
       // await api.saveDateGaps(dateGaps);
+      
+      // TODO: Add audit log entry
+      // await api.createAuditLog({
+      //   action: 'CONFIG_UPDATE',
+      //   resource: 'date_gaps',
+      //   details: { changes: ... }
+      // });
+      
       alert('Date gap configuration saved successfully!');
     } catch (error) {
       console.error('Error saving date gaps:', error);
@@ -116,6 +146,110 @@ export default function ConfigPage() {
     return Object.keys(defaultDateGaps).every(key => 
       dateGaps[key as keyof typeof dateGaps] === defaultDateGaps[key as keyof typeof defaultDateGaps]
     );
+  };
+
+  // Check if date fields configuration matches default
+  const isDefaultDateFieldsConfiguration = () => {
+    const defaultFields = [
+      { key: 'ga_date', isRequired: true, isEnabled: true },
+      { key: 'promotion_gate_met_date', isRequired: true, isEnabled: true },
+      { key: 'commit_gate_met_date', isRequired: true, isEnabled: true },
+      { key: 'soft_code_complete_date', isRequired: true, isEnabled: true },
+      { key: 'execute_commit_date', isRequired: true, isEnabled: true },
+      { key: 'concept_commit_date', isRequired: true, isEnabled: true },
+      { key: 'pre_cc_complete_date', isRequired: true, isEnabled: true }
+    ];
+
+    return dateFields.every(field => {
+      const defaultField = defaultFields.find(df => df.key === field.key);
+      return defaultField && 
+             field.isRequired === defaultField.isRequired && 
+             field.isEnabled === defaultField.isEnabled;
+    });
+  };
+
+  // Date fields handlers
+  const toggleFieldEnabled = (fieldKey: string) => {
+    setDateFields(prev => prev.map(field => 
+      field.key === fieldKey 
+        ? { ...field, isEnabled: !field.isEnabled }
+        : field
+    ));
+  };
+
+  const toggleFieldRequired = (fieldKey: string) => {
+    setDateFields(prev => prev.map(field => 
+      field.key === fieldKey 
+        ? { ...field, isRequired: !field.isRequired }
+        : field
+    ));
+  };
+
+  const handleSaveFields = async () => {
+    try {
+      setSavingFields(true);
+      
+      // Log configuration change
+      const defaultFields = [
+        { key: 'ga_date', isRequired: true, isEnabled: true },
+        { key: 'promotion_gate_met_date', isRequired: true, isEnabled: true },
+        { key: 'commit_gate_met_date', isRequired: true, isEnabled: true },
+        { key: 'soft_code_complete_date', isRequired: true, isEnabled: true },
+        { key: 'execute_commit_date', isRequired: true, isEnabled: true },
+        { key: 'concept_commit_date', isRequired: true, isEnabled: true },
+        { key: 'pre_cc_complete_date', isRequired: true, isEnabled: true }
+      ];
+
+      const changes = dateFields.filter(field => {
+        const defaultField = defaultFields.find(df => df.key === field.key);
+        return defaultField && (
+          field.isRequired !== defaultField.isRequired || 
+          field.isEnabled !== defaultField.isEnabled
+        );
+      }).map(field => ({
+        field: field.key,
+        label: field.label,
+        changes: {
+          isRequired: { from: true, to: field.isRequired },
+          isEnabled: { from: true, to: field.isEnabled }
+        }
+      }));
+
+      console.log('🔧 Date fields configuration changed:', {
+        previous: defaultFields,
+        current: dateFields,
+        changes
+      });
+
+      // TODO: Implement API call to save date fields configuration
+      // await api.saveDateFields(dateFields);
+      
+      // TODO: Add audit log entry
+      // await api.createAuditLog({
+      //   action: 'CONFIG_UPDATE',
+      //   resource: 'date_fields',
+      //   details: { changes }
+      // });
+      
+      alert('Date fields configuration saved successfully!');
+    } catch (error) {
+      console.error('Error saving date fields:', error);
+      alert('Failed to save date fields configuration');
+    } finally {
+      setSavingFields(false);
+    }
+  };
+
+  const handleResetFields = () => {
+    setDateFields([
+      { key: 'ga_date', label: 'GA Date', description: 'General availability release date', isRequired: true, isEnabled: true, priority: 1 },
+      { key: 'promotion_gate_met_date', label: 'Promotion Gate Met Date', description: 'Promotion gate milestone date', isRequired: true, isEnabled: true, priority: 2 },
+      { key: 'commit_gate_met_date', label: 'Commit Gate Met Date', description: 'Commit gate milestone date', isRequired: true, isEnabled: true, priority: 3 },
+      { key: 'soft_code_complete_date', label: 'Soft Code Complete Date', description: 'Soft code completion date', isRequired: true, isEnabled: true, priority: 4 },
+      { key: 'execute_commit_date', label: 'Execute Commit Date', description: 'Execution commitment date', isRequired: true, isEnabled: true, priority: 5 },
+      { key: 'concept_commit_date', label: 'Concept Commit Date', description: 'Concept commitment date', isRequired: true, isEnabled: true, priority: 6 },
+      { key: 'pre_cc_complete_date', label: 'Pre-CC Complete Date', description: 'Pre-concept commit completion date', isRequired: true, isEnabled: true, priority: 7 }
+    ]);
   };
 
   const getTypeIcon = (type: string) => {
@@ -144,7 +278,7 @@ export default function ConfigPage() {
   // Show loading while user is being fetched
   if (loading || !user) {
     return (
-      <Layout user={user}>
+      <Layout user={user || undefined}>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-16 w-16 text-gray-400 mx-auto mb-4 animate-spin" />
@@ -158,7 +292,7 @@ export default function ConfigPage() {
 
   if (user?.role !== 'superadmin') {
     return (
-      <Layout user={user}>
+      <Layout user={user || undefined}>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <Settings className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -171,454 +305,72 @@ export default function ConfigPage() {
   }
 
   return (
-    <Layout user={user}>
+    <Layout 
+      user={user}
+      pageHeader={{
+        title: "Configuration",
+        description: "Manage data fields, date gaps, and system configuration. Configure NDB-specific settings including release cycle parameters and JIRA integration.",
+        icon: Settings
+      }}
+    >
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Settings className="h-8 w-8 text-purple-600" />
-              Configuration
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Manage data fields and system configuration
+        {/* Configuration Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Data Fields Configuration Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <Database className="h-8 w-8 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Data Fields</h3>
+            </div>
+            <p className="text-gray-600 mb-4">
+              Configure date fields, their requirements, and display settings. Define which fields are required, enabled, and their display priority for release plans.
             </p>
+            <button 
+              onClick={() => router.push('/config/data-fields')}
+              className="w-full btn-primary flex items-center justify-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Configure Data Fields
+            </button>
           </div>
-          <button 
-            onClick={() => router.push('/config/fields/new')}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add Field
-          </button>
-        </div>
 
-        {/* Data Fields Section */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Database className="h-5 w-5 text-blue-600" />
-              Data Fields
-            </h2>
-            <p className="text-sm text-gray-600">
-              Configure the data fields used for capacity planning entries
+          {/* Date Gaps Configuration Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <Calendar className="h-8 w-8 text-green-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Date Gaps</h3>
+            </div>
+            <p className="text-gray-600 mb-4">
+              Set the number of weeks between different milestone dates in the NDB release cycle. These gaps define the standard timeline between gates and milestones.
             </p>
+            <button 
+              onClick={() => router.push('/config/date-gaps')}
+              className="w-full btn-primary flex items-center justify-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Configure Date Gaps
+            </button>
           </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+          {/* JIRA Components Configuration Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <Users className="h-8 w-8 text-purple-600" />
+              <h3 className="text-lg font-semibold text-gray-900">JIRA Components</h3>
             </div>
-          ) : fields.length === 0 ? (
-            <div className="text-center py-12">
-              <Database className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No data fields configured
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Create data fields to start collecting capacity planning information
-              </p>
-              <button 
-                onClick={() => router.push('/config/fields/new')}
-                className="btn-primary flex items-center gap-2 mx-auto"
-              >
-                <Plus className="h-4 w-4" />
-                Add Field
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Field Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Required
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {fields.map((field) => (
-                    <tr key={field.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{field.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          {getTypeIcon(field.type)}
-                          <span className="text-sm text-gray-900 capitalize">{field.type}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          field.required 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {field.required ? 'Required' : 'Optional'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 max-w-xs truncate">
-                          {field.description || 'No description'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(field.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-2">
-                          <button 
-                            onClick={() => router.push(`/config/fields/${field.id}/edit`)}
-                            className="text-yellow-600 hover:text-yellow-900"
-                            title="Edit"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(field.id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Date Fields Configuration Section */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-green-600" />
-              Date Fields Configuration
-            </h2>
-            <p className="text-sm text-gray-600">
-              Manage date fields used in release plans. Add new fields or modify existing ones.
+            <p className="text-gray-600 mb-4">
+              View and manage ERA project components and assignable users from JIRA. Data is stored in the database and synced manually for optimal performance.
             </p>
-          </div>
-          <div className="p-6">
-            <div className="mb-4">
-              <button
-                onClick={() => {/* TODO: Add new date field */}}
-                className="btn-primary flex items-center space-x-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Add New Date Field</span>
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <h3 className="text-md font-medium text-gray-900">Current Date Fields</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* GA Date */}
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">GA Date</h4>
-                      <p className="text-xs text-gray-500">General availability release date</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    Required
-                  </span>
-                </div>
-
-                {/* Promotion Gate Met Date */}
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-green-600" />
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Promotion Gate Met Date</h4>
-                      <p className="text-xs text-gray-500">Promotion gate milestone date</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    Optional
-                  </span>
-                </div>
-
-                {/* Commit Gate Met Date */}
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-green-600" />
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Commit Gate Met Date</h4>
-                      <p className="text-xs text-gray-500">Commit gate milestone date</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    Optional
-                  </span>
-                </div>
-
-                {/* Soft Code Complete Date */}
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-green-600" />
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Soft Code Complete Date</h4>
-                      <p className="text-xs text-gray-500">Soft code completion date</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    Optional
-                  </span>
-                </div>
-
-                {/* Execute Commit Date */}
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-green-600" />
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Execute Commit Date</h4>
-                      <p className="text-xs text-gray-500">Execution commitment date</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    Optional
-                  </span>
-                </div>
-
-                {/* Concept Commit Date */}
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-green-600" />
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Concept Commit Date</h4>
-                      <p className="text-xs text-gray-500">Concept commitment date</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    Optional
-                  </span>
-                </div>
-
-                {/* Pre-CC Complete Date */}
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-green-600" />
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Pre-CC Complete Date</h4>
-                      <p className="text-xs text-gray-500">Pre-concept commit completion date</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    Optional
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Date Gap Configuration Section */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-600" />
-              Date Gap Configuration
-            </h2>
-            <p className="text-sm text-gray-600">
-              Configure gaps between different milestone dates in release plans
-            </p>
-          </div>
-          <div className="p-6">
-            <div className="grid gap-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Gap between GA and Promotion Gate (weeks)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="52"
-                    value={dateGaps.gaToPromotionGate}
-                    onChange={(e) => handleGapChange('gaToPromotionGate', parseInt(e.target.value) || 4)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="4"
-                  />
-                  <p className="text-xs text-gray-500">How many weeks before GA should Promotion Gate occur</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Gap between Promotion Gate and Commit Gate (weeks)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="52"
-                    value={dateGaps.promotionGateToCommitGate}
-                    onChange={(e) => handleGapChange('promotionGateToCommitGate', parseInt(e.target.value) || 4)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="4"
-                  />
-                  <p className="text-xs text-gray-500">How many weeks between Promotion Gate and Commit Gate</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Gap between Commit Gate and Soft Code Complete (weeks)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="52"
-                    value={dateGaps.commitGateToSoftCodeComplete}
-                    onChange={(e) => handleGapChange('commitGateToSoftCodeComplete', parseInt(e.target.value) || 4)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="4"
-                  />
-                  <p className="text-xs text-gray-500">How many weeks between Commit Gate and Soft Code Complete</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Gap between Soft Code Complete and Execute Commit (weeks)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="52"
-                    value={dateGaps.softCodeCompleteToExecuteCommit}
-                    onChange={(e) => handleGapChange('softCodeCompleteToExecuteCommit', parseInt(e.target.value) || 4)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="4"
-                  />
-                  <p className="text-xs text-gray-500">How many weeks between Soft Code Complete and Execute Commit</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Gap between Execute Commit and Concept Commit (weeks)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="52"
-                    value={dateGaps.executeCommitToConceptCommit}
-                    onChange={(e) => handleGapChange('executeCommitToConceptCommit', parseInt(e.target.value) || 4)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="4"
-                  />
-                  <p className="text-xs text-gray-500">How many weeks between Execute Commit and Concept Commit</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Gap between Concept Commit and Pre-CC Complete (weeks)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="52"
-                    value={dateGaps.conceptCommitToPreCcComplete}
-                    onChange={(e) => handleGapChange('conceptCommitToPreCcComplete', parseInt(e.target.value) || 4)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="4"
-                  />
-                  <p className="text-xs text-gray-500">How many weeks between Concept Commit and Pre-CC Complete</p>
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                {isDefaultConfiguration() && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
-                    Configuration matches default values
-                  </div>
-                )}
-                <div className="flex space-x-3">
-                  <button
-                    type="button"
-                    onClick={handleResetGaps}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    Reset to Defaults
-                  </button>
-                  {!isDefaultConfiguration() && (
-                    <button
-                      type="button"
-                      onClick={handleSaveGaps}
-                      disabled={savingGaps}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {savingGaps ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                          Saving...
-                        </>
-                      ) : (
-                        'Save Configuration'
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* System Settings Section */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Settings className="h-5 w-5 text-purple-600" />
-              System Settings
-            </h2>
-            <p className="text-sm text-gray-600">
-              Configure system-wide settings and integrations
-            </p>
-          </div>
-          <div className="p-6">
-            <div className="grid gap-4">
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900">RBAC (Role-Based Access Control)</h3>
-                  <p className="text-sm text-gray-600">Currently disabled for local development</p>
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                  Disabled
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900">Local Development Mode</h3>
-                  <p className="text-sm text-gray-600">OKTA authentication bypassed</p>
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Active
-                </span>
-              </div>
-            </div>
+            <button 
+              onClick={() => router.push('/config/jira-components')}
+              className="w-full btn-primary flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Manage JIRA Data
+            </button>
           </div>
         </div>
       </div>
     </Layout>
   );
 }
-
